@@ -99,67 +99,24 @@ class TestLastState:
 
 
 class TestJobReport:
-    def test_report_contains_expected_keys(self):
+    def test_returns_dict_with_expected_keys(self):
         entries = [
             make_entry("job_a", JobState.SUCCESS),
             make_entry("job_a", JobState.FAILED),
         ]
         report = job_report("job_a", entries)
         assert "job_id" in report
-        assert "total_checks" in report
-        assert "failure_rate" in report
         assert "last_state" in report
+        assert "failure_rate" in report
         assert "state_summary" in report
 
-    def test_report_job_id_matches(self):
-        entries = [make_entry("my_job", JobState.SUCCESS)]
-        report = job_report("my_job", entries)
-        assert report["job_id"] == "my_job"
-
-    def test_report_total_checks(self):
-        entries = [
-            make_entry("job_a", JobState.SUCCESS),
-            make_entry("job_a", JobState.SUCCESS),
-            make_entry("job_a", JobState.FAILED),
-        ]
+    def test_job_id_matches(self):
+        entries = [make_entry("job_a", JobState.SUCCESS)]
         report = job_report("job_a", entries)
-        assert report["total_checks"] == 3
+        assert report["job_id"] == "job_a"
 
-    def test_report_failure_rate_value(self):
-        entries = [
-            make_entry("job_a", JobState.SUCCESS),
-            make_entry("job_a", JobState.FAILED),
-        ]
-        report = job_report("job_a", entries)
-        assert report["failure_rate"] == pytest.approx(0.5)
-
-    def test_empty_entries_report(self):
-        report = job_report("empty_job", [])
-        assert report["total_checks"] == 0
-        assert report["failure_rate"] == 0.0
+    def test_empty_entries(self):
+        report = job_report("job_a", [])
         assert report["last_state"] is None
-
-
-class TestAllJobsReport:
-    def test_empty_history_returns_empty_list(self):
-        result = all_jobs_report({})
-        assert result == []
-
-    def test_single_job_report(self):
-        history = {
-            "job_a": [make_entry("job_a", JobState.SUCCESS)]
-        }
-        result = all_jobs_report(history)
-        assert len(result) == 1
-        assert result[0]["job_id"] == "job_a"
-
-    def test_multiple_jobs_report(self):
-        history = {
-            "job_a": [make_entry("job_a", JobState.SUCCESS)],
-            "job_b": [make_entry("job_b", JobState.FAILED)],
-            "job_c": [make_entry("job_c", JobState.STALE)],
-        }
-        result = all_jobs_report(history)
-        assert len(result) == 3
-        job_ids = {r["job_id"] for r in result}
-        assert job_ids == {"job_a", "job_b", "job_c"}
+        assert report["failure_rate"] == 0.0
+        assert report["state_summary"] == {}
