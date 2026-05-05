@@ -76,7 +76,16 @@ class EscalationTracker:
         if not os.path.exists(self.store_path):
             return
         with open(self.store_path, "r") as fh:
-            raw = json.load(fh)
+            try:
+                raw = json.load(fh)
+            except json.JSONDecodeError as exc:
+                raise ValueError(
+                    f"Escalation store at '{self.store_path}' contains invalid JSON: {exc}"
+                ) from exc
+        if not isinstance(raw, list):
+            raise ValueError(
+                f"Escalation store at '{self.store_path}' must contain a JSON array, got {type(raw).__name__}"
+            )
         for item in raw:
             state = EscalationState.from_dict(item)
             self._states[self._key(state.job_name, state.rule_name)] = state
@@ -92,31 +101,3 @@ class EscalationTracker:
         state = self._states.get(key)
 
         if state is None:
-            state = EscalationState(job_name=event.job_name, rule_name=event.rule_name)
-            self._states[key] = state
-
-        # Reset counter if cooldown has elapsed
-        if state.last_fired is not None:
-            elapsed = (now - state.last_fired).total_seconds() / 60
-            if elapsed > self.policy.cooldown_minutes:
-                state.count = 0
-                state.escalated = False
-
-        state.count += 1
-        state.last_fired = now
-
-        if state.count >= self.policy.threshold:
-            state.escalated = True
-
-        self._save()
-        return state.escalated
-
-    def get_state(self, job_name: str, rule_name: str) -> Optional[EscalationState]:
-        return self._states.get(self._key(job_name, rule_name))
-
-    def reset(self, job_name: str, rule_name: str) -> None:
-        """Manually reset the escalation state for a job/rule pair."""
-        key = self._key(job_name, rule_name)
-        if key in self._states:
-            del self._states[key]
-            self._save()
