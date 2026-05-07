@@ -69,7 +69,21 @@ def _render_text(results: List[TrendResult]) -> str:
 def main(argv: List[str] | None = None) -> None:
     args = parse_args(argv)
     store = HistoryStore(args.history)
-    all_entries = store.load()
+
+    try:
+        all_entries = store.load()
+    except FileNotFoundError:
+        print(
+            f"Error: history file '{args.history}' not found.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    except (json.JSONDecodeError, ValueError) as exc:
+        print(
+            f"Error: could not parse history file '{args.history}': {exc}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
     job_names = (
         [args.job] if args.job else sorted({e.job_name for e in all_entries})
